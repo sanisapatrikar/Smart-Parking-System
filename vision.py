@@ -4,14 +4,14 @@ vision.py — Licence plate recognition for the Smart Parking System.
 Public API
 ----------
 scan_plate() -> Optional[str]
-    Capture a frame from the Raspberry Pi CSI Camera Module, pre-process it
+    Capture a frame from a USB webcam or mobile IP camera, pre-process it
     with OpenCV, and extract a licence plate string using EasyOCR.
     Returns the plate string on success, or None if recognition fails.
     There is no QR-code fallback; callers must handle a None return value.
 
 Pipeline
 --------
-1. capture_frame()     — Picamera2 CSI capture → BGR numpy array
+1. capture_frame()     — cv2.VideoCapture (USB webcam or IP stream) → BGR array
 2. preprocess_frame()  — BGR → grayscale → bilateral filter → adaptive threshold
 3. extract_plate()     — EasyOCR readtext → confidence filter → regex preference
 """
@@ -24,7 +24,6 @@ from typing import Optional
 import cv2
 import easyocr
 import numpy as np
-from picamera2 import Picamera2
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +31,10 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 
-# Camera capture resolution
-_CAPTURE_WIDTH = 1280
-_CAPTURE_HEIGHT = 720
+# Camera source — change to a URL string for an IP Webcam stream, e.g.:
+#   "http://192.168.1.42:8080/video"
+# Leave as 0 to use the first attached USB webcam.
+_CAMERA_SOURCE = 0
 
 # EasyOCR: discard detections whose confidence is below this threshold
 _OCR_CONFIDENCE_THRESHOLD = 0.3
@@ -65,24 +65,30 @@ def _get_reader() -> easyocr.Reader:
 
 def capture_frame() -> Optional[np.ndarray]:
     """
-    Capture a single still frame from the CSI Camera Module.
+    Capture a single frame from a USB webcam or mobile IP camera stream.
+
+    The camera source is controlled by ``_CAMERA_SOURCE``:
+    - Set to ``0`` (integer) for the first attached USB webcam.
+    - Set to a URL string (e.g. ``"http://192.168.1.42:8080/video"``) for
+      a mobile phone running an IP Webcam app.
 
     Returns a BGR numpy array suitable for OpenCV processing, or None if
-    the capture fails for any reason (camera not connected, driver error, …).
+    the capture fails for any reason (camera not found, stream unavailable).
     """
-    cam: Optional[Picamera2] = None
+    cap: Optional[cv2.VideoCapture] = None
     try:
-        cam = Picamera2()
-        config = cam.create_still_configuration(
-            main={"size": (_CAPTURE_WIDTH, _CAPTURE_HEIGHT), "format": "RGB888"}
-        )
-        cam.configure(config)
-        cam.start()
-        # Allow auto-exposure and auto-white-balance to converge
+        cap = cv2.VideoCapture(_CAMERA_SOURCE)
+        if not cap.isOpened():
+            logger.error(
+                "capture_frame: cannot open camera source '%s'", _CAMERA_SOURCE
+            )
+            return None
+        # Allow the camera's auto-exposure to settle before grabbing a frame
         time.sleep(0.5)
-        frame_rgb = cam.capture_array()
-        # Convert RGB (Picamera2 native) → BGR (OpenCV convention)
-        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+        ret, frame_bgr = cap.read()
+        if not ret or frame_bgr is None:
+            logger.error("capture_frame: cap.read() returned no frame")
+            return None
         logger.debug(
             "Frame captured: %d×%d", frame_bgr.shape[1], frame_bgr.shape[0]
         )
@@ -91,12 +97,8 @@ def capture_frame() -> Optional[np.ndarray]:
         logger.error("capture_frame failed: %s", exc)
         return None
     finally:
-        if cam is not None:
-            try:
-                cam.stop()
-                cam.close()
-            except Exception:
-                pass
+        if cap is not None:
+            cap.release()
 
 
 # ---------------------------------------------------------------------------
@@ -166,7 +168,7 @@ def extract_plate(frame: np.ndarray) -> Optional[str]:
     Parameters
     ----------
     frame : np.ndarray
-        Raw BGR image from ``capture_frame()``.
+        Raw BGR image from ``capture_frame()`` (USB webcam or IP stream).
 
     Returns
     -------

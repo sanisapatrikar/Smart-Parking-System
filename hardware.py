@@ -2,22 +2,21 @@
 hardware.py — GPIO hardware abstractions for the Smart Parking System.
 
 Provides:
-  - LCDDisplay      : 16×2 I2C LCD (PCF8574 backpack) via RPLCD
-  - ServoGate       : Gate servo via pigpio hardware PWM on GPIO 18
-  - UltrasonicSensor: HC-SR04 distance measurement with timeout handling
-  - DebouncedIRSensor: IR proximity sensor with 3-second software debounce
+  - LCDDisplay        : 16×2 I2C LCD (PCF8574 backpack) via RPLCD
+  - ServoGate         : Gate servo via pigpio hardware PWM on GPIO 18
+  - DebouncedIRSensor : IR proximity sensor with 3-second software debounce
 
 All BCM GPIO pin numbers match the wiring described in README.md.
 
-⚠️  HC-SR04 ECHO pins output 5 V.  Use a 1 kΩ / 2 kΩ voltage divider on
-    EVERY Echo pin before connecting to the Pi GPIO or you will cause
-    permanent hardware damage.  See README.md for details.
+⚠️  All IR sensor modules MUST be powered from the 3.3 V rail (Pin 1 or
+    Pin 17).  Powering them from 5 V will cause their OUT pins to swing to
+    5 V, which exceeds the 3.3 V maximum safe input level of the Pi's GPIO
+    pins and will permanently damage the SoC.  See README.md for details.
 """
 
 import logging
 import threading
 import time
-from typing import Optional
 
 import pigpio
 import RPi.GPIO as GPIO
@@ -29,12 +28,13 @@ logger = logging.getLogger(__name__)
 # GPIO pin definitions (BCM numbering)
 # ---------------------------------------------------------------------------
 SERVO_PIN = 18          # Hardware PWM0
-ENTRANCE_TRIG = 23      # Entrance HC-SR04 TRIG
-ENTRANCE_ECHO = 24      # Entrance HC-SR04 ECHO  (via voltage divider!)
-SLOT3_TRIG = 20         # Slot-3 HC-SR04 TRIG
-SLOT3_ECHO = 21         # Slot-3 HC-SR04 ECHO    (via voltage divider!)
-IR_SLOT1_PIN = 17       # IR sensor — Slot 1
-IR_SLOT2_PIN = 27       # IR sensor — Slot 2
+
+# IR sensors (all powered from the 3.3 V rail — see module docstring)
+IR_ENTRANCE_PIN = 17    # IR sensor — entrance trigger
+IR_SLOT1_PIN = 27       # IR sensor — Slot 1
+IR_SLOT2_PIN = 22       # IR sensor — Slot 2
+IR_SLOT3_PIN = 5        # IR sensor — Slot 3
+IR_SLOT4_PIN = 6        # IR sensor — Slot 4
 
 # LCD I2C settings
 LCD_I2C_ADDRESS = 0x27  # Run 'sudo i2cdetect -y 1' to confirm; may be 0x3F
@@ -45,11 +45,6 @@ LCD_ROWS = 2
 # Servo pulse widths in microseconds (SG90 / MG996R compatible)
 SERVO_OPEN_PW = 1500    # ~90° — gate open
 SERVO_CLOSED_PW = 500   # ~0°  — gate closed
-
-# Ultrasonic sensor constants
-_TRIGGER_DURATION_S = 0.00001   # 10 µs trigger pulse
-_ECHO_TIMEOUT_S = 0.04          # 40 ms max wait (≈ 6.8 m range)
-_SPEED_OF_SOUND_CM_S = 34300    # cm/s at ~20 °C
 
 # IR debounce window
 IR_DEBOUNCE_SECONDS = 3
@@ -182,76 +177,6 @@ class ServoGate:
         self._pi.set_servo_pulsewidth(self._pin, 0)
         self._pi.stop()
         logger.info("ServoGate cleaned up")
-
-
-# ---------------------------------------------------------------------------
-# Ultrasonic Sensor (HC-SR04)
-# ---------------------------------------------------------------------------
-
-class UltrasonicSensor:
-    """
-    Distance measurement using an HC-SR04 ultrasonic sensor.
-
-    ⚠️  The HC-SR04 ECHO pin outputs 5 V logic.  You MUST wire it through a
-        1 kΩ / 2 kΩ resistor voltage divider before the Pi GPIO pin.
-        See README.md for the exact circuit diagram.
-
-    Usage::
-
-        # init_gpio() must be called before instantiating this class
-        sensor = UltrasonicSensor(trig_pin=ENTRANCE_TRIG, echo_pin=ENTRANCE_ECHO)
-        dist = sensor.get_distance_cm()   # float or None
-    """
-
-    def __init__(self, trig_pin: int, echo_pin: int) -> None:
-        self._trig = trig_pin
-        self._echo = echo_pin
-        GPIO.setup(self._trig, GPIO.OUT, initial=GPIO.LOW)
-        GPIO.setup(self._echo, GPIO.IN)
-        time.sleep(0.05)  # Allow sensor to stabilise after power-on
-        logger.info(
-            "UltrasonicSensor initialised (TRIG=GPIO%d, ECHO=GPIO%d)",
-            self._trig,
-            self._echo,
-        )
-
-    def get_distance_cm(self) -> Optional[float]:
-        """
-        Trigger a single measurement and return the distance in centimetres.
-
-        Returns None if the echo response times out, which indicates either
-        no object in range or a wiring problem.
-        """
-        # Send a 10 µs HIGH pulse on the TRIG pin
-        GPIO.output(self._trig, GPIO.HIGH)
-        time.sleep(_TRIGGER_DURATION_S)
-        GPIO.output(self._trig, GPIO.LOW)
-
-        # Wait for ECHO to go HIGH (start of reflected pulse)
-        deadline = time.monotonic() + _ECHO_TIMEOUT_S
-        while GPIO.input(self._echo) == GPIO.LOW:
-            if time.monotonic() > deadline:
-                logger.warning(
-                    "UltrasonicSensor (TRIG=GPIO%d): echo-start timeout", self._trig
-                )
-                return None
-        pulse_start = time.monotonic()
-
-        # Wait for ECHO to go LOW (end of reflected pulse)
-        deadline = pulse_start + _ECHO_TIMEOUT_S
-        while GPIO.input(self._echo) == GPIO.HIGH:
-            if time.monotonic() > deadline:
-                logger.warning(
-                    "UltrasonicSensor (TRIG=GPIO%d): echo-end timeout", self._trig
-                )
-                return None
-        pulse_end = time.monotonic()
-
-        distance_cm = (pulse_end - pulse_start) * _SPEED_OF_SOUND_CM_S / 2.0
-        logger.debug(
-            "UltrasonicSensor (TRIG=GPIO%d): %.1f cm", self._trig, distance_cm
-        )
-        return distance_cm
 
 
 # ---------------------------------------------------------------------------

@@ -1,332 +1,210 @@
 # Smart Parking System
 
-A modular, Raspberry Pi 4B–based Smart Parking System for a mall environment. The system uses computer vision (ALPR via EasyOCR), ultrasonic and IR sensors, a servo-controlled gate, and a 16×2 I2C LCD to automate vehicle entry, slot allocation, exit detection, and dynamic billing.
+A modular, Raspberry Pi 4B–based Smart Parking System designed for a mall environment. The system uses **Automatic Licence Plate Recognition (ALPR)** via EasyOCR, five IR proximity sensors for entry detection and slot occupancy, a servo-controlled gate, and a 16×2 I2C LCD to automate vehicle entry, slot allocation, exit detection, and dynamic billing.
 
 ---
 
 ## Table of Contents
 
-1. [Architecture Overview](#architecture-overview)
-2. [Hardware Components](#hardware-components)
-3. [GPIO Pin Assignment](#gpio-pin-assignment)
-4. [Wiring Instructions](#wiring-instructions)
-   - [Power & Ground Rail](#power--ground-rail)
-   - [I2C LCD Display](#i2c-lcd-display)
-   - [Servo Motor (Gate)](#servo-motor-gate)
-   - [Entrance Ultrasonic Sensor (HC-SR04)](#entrance-ultrasonic-sensor-hc-sr04)
-   - [Slot 3 Ultrasonic Sensor (HC-SR04)](#slot-3-ultrasonic-sensor-hc-sr04)
-   - [Slot 1 IR Sensor](#slot-1-ir-sensor)
-   - [Slot 2 IR Sensor](#slot-2-ir-sensor)
-   - [Raspberry Pi Camera Module](#raspberry-pi-camera-module)
-5. [⚠️ Voltage Divider Warning (HC-SR04 Echo Pin)](#️-voltage-divider-warning-hc-sr04-echo-pin)
+1. [Project Overview](#project-overview)
+2. [Hardware Requirements](#hardware-requirements)
+3. [Master Wiring Guide](#master-wiring-guide)
+4. [Camera Configuration](#camera-configuration)
+5. [Software Setup](#software-setup)
 6. [Repository File Structure](#repository-file-structure)
 7. [Core Logic Flow](#core-logic-flow)
 8. [Dynamic Pricing](#dynamic-pricing)
-9. [Software Setup](#software-setup)
-   - [Prerequisites](#prerequisites)
-   - [System Dependencies](#system-dependencies)
-   - [Python Dependencies](#python-dependencies)
-   - [Enable Required Interfaces](#enable-required-interfaces)
-   - [Run the System](#run-the-system)
-10. [database.json Schema](#databasejson-schema)
+9. [database.json Schema](#databasejson-schema)
 
 ---
 
-## Architecture Overview
+## Project Overview
 
-The project is intentionally split into focused modules rather than a single monolithic script:
+The Smart Parking System automates the complete vehicle lifecycle inside a mall car park:
 
-| File | Responsibility |
+- **Entry detection** — An IR sensor at the entrance detects an approaching vehicle and triggers the ALPR pipeline.
+- **Licence Plate Recognition** — `vision.py` captures a frame from a USB webcam or mobile IP camera, pre-processes it with OpenCV (grayscale → bilateral filter → adaptive threshold), and extracts the plate string with EasyOCR.  If recognition fails the system returns `None` and resets; there is no QR-code fallback.
+- **Slot allocation** — `main.py` finds the lowest-numbered free slot (tracked by four IR occupancy sensors with 3-second software debounce) and records `{plate_id, entry_time, slot}` in `database.json`.
+- **Gate control** — A servo motor opens the gate for 5 seconds, then closes it automatically.
+- **Exit & billing** — When a slot sensor transitions from Occupied → Free, `billing.py` calculates the charge using dynamic peak/off-peak rates and prints the bill to the terminal.
+
+### Dynamic Pricing
+
+| Time Window | Rate |
 |---|---|
-| `main.py` | State machine and core control loop |
-| `hardware.py` | GPIO abstractions: Servo, IR sensors (debounced), Ultrasonic sensors, I2C LCD |
-| `vision.py` | ALPR via EasyOCR with OpenCV preprocessing; returns `None` if recognition fails (no QR fallback) |
-| `billing.py` | Entry/exit time tracking and dynamic cost calculation |
-| `database.json` | Lightweight local file-store for active parked vehicles |
+| Off-peak (all hours outside 17:00–22:00) | **Rs. 50 / hour** |
+| Peak hours (17:00–22:00 daily) | **Rs. 75 / hour** |
+
+Partial hours are billed per-minute. The billing engine splits the parked duration across rate windows automatically.
 
 ---
 
-## Hardware Components
+## Hardware Requirements
 
-| Qty | Component | Notes |
-|-----|-----------|-------|
-| 1 | Raspberry Pi 4B | Brain of the system |
-| 1 | Raspberry Pi Camera Module v2 | Connected via CSI ribbon cable |
-| 1 | 16×2 I2C LCD Display (PCF8574 backpack) | Address typically `0x27` or `0x3F` |
-| 1 | Standard Servo Motor (e.g., SG90 / MG996R) | Gate control |
-| 2 | HC-SR04 Ultrasonic Sensor | Entrance trigger + Slot 3 occupancy |
-| 2 | IR Sensor Module (digital output) | Slot 1 & Slot 2 occupancy |
-| 1 | Breadboard + Jumper Wires | Prototyping |
-| 1 | 1 kΩ Resistor | Voltage divider (Echo pin) — see warning |
-| 1 | 2 kΩ Resistor | Voltage divider (Echo pin) — see warning |
-| 1 | 5 V / 3 A USB-C Power Supply | For the Pi |
-| 1 | Servo external 5 V supply (optional) | Prevents Pi brownout under load |
+### Active Components
 
----
+| Qty | Component | Purpose |
+|-----|-----------|---------|
+| 1 | Raspberry Pi 4B (2 GB RAM or above) | Central controller |
+| 1 | 16×2 I2C LCD Display (PCF8574 backpack) | User-facing status messages |
+| 1 | Standard Servo Motor (SG90 or MG996R) | Automated entrance gate |
+| 5 | IR Proximity Sensor Module (digital OUT) | 1× entrance trigger + 4× slot occupancy |
+| 1 | USB Webcam **or** Mobile Phone (IP Webcam app) | Licence plate capture |
+| 1 | Breadboard + Jumper Wires | Prototyping connections |
+| 1 | 5 V / 3 A USB-C Power Supply | Powers the Pi |
+| 1 | Servo external 5 V supply *(optional)* | Prevents Pi brownout under servo load |
 
-## GPIO Pin Assignment
+### ~~Removed Components (no longer used)~~
 
-All pin numbers use the **BCM (Broadcom) numbering** scheme unless otherwise stated.
-
-| Signal | BCM GPIO | Physical Pin | Direction |
-|---|---|---|---|
-| I2C SDA (LCD) | GPIO 2 | Pin 3 | Bidirectional |
-| I2C SCL (LCD) | GPIO 3 | Pin 5 | Bidirectional |
-| Servo PWM | GPIO 18 | Pin 12 | Output (HW PWM0) |
-| Entrance HC-SR04 TRIG | GPIO 23 | Pin 16 | Output |
-| Entrance HC-SR04 ECHO | GPIO 24 | Pin 18 | Input *(via voltage divider)* |
-| Slot 3 HC-SR04 TRIG | GPIO 20 | Pin 38 | Output |
-| Slot 3 HC-SR04 ECHO | GPIO 21 | Pin 40 | Input *(via voltage divider)* |
-| IR Sensor — Slot 1 | GPIO 17 | Pin 11 | Input |
-| IR Sensor — Slot 2 | GPIO 27 | Pin 13 | Input |
-
-> **Tip:** All GND pins are interchangeable; use any of the Pi's GND pins (e.g., Pins 6, 9, 14, 20, 25, 30, 34, 39) to build a shared ground rail on the breadboard.
+> ⚠️ **The following components from previous hardware revisions are NO LONGER part of this build.  Do NOT connect them.**
+>
+> | Removed Component | Reason |
+> |---|---|
+> | ~~HC-SR04 Ultrasonic Sensors~~ | Replaced entirely by IR sensors for all detection tasks |
+> | ~~Raspberry Pi Camera Module v2 (CSI)~~ | Replaced by an external USB webcam or IP camera |
+> | ~~1 kΩ / 2 kΩ Resistors (voltage divider)~~ | Only required for HC-SR04 Echo pins — no longer needed |
 
 ---
 
-## Wiring Instructions
+## Master Wiring Guide
 
-### Power & Ground Rail
+All GPIO numbers use the **BCM (Broadcom)** scheme.
 
-1. Connect **Pin 2 (5 V)** and **Pin 4 (5 V)** from the Pi to the **positive (+) rail** of the breadboard.
-2. Connect **Pin 6 (GND)** from the Pi to the **negative (−) rail** of the breadboard.
-3. All sensor VCC and GND connections described below reference these rails.
+### GPIO Pin Assignment
+
+| Signal | BCM GPIO | Physical Pin | Direction | Supply Rail |
+|---|---|---|---|---|
+| I2C SDA — LCD | GPIO 2 | Pin 3 | Bidirectional | — |
+| I2C SCL — LCD | GPIO 3 | Pin 5 | Bidirectional | — |
+| Servo PWM | GPIO 18 | Pin 12 | Output | **5 V rail** |
+| IR Sensor — Entrance | GPIO 17 | Pin 11 | Input | **3.3 V rail** |
+| IR Sensor — Slot 1 | GPIO 27 | Pin 13 | Input | **3.3 V rail** |
+| IR Sensor — Slot 2 | GPIO 22 | Pin 15 | Input | **3.3 V rail** |
+| IR Sensor — Slot 3 | GPIO 5 | Pin 29 | Input | **3.3 V rail** |
+| IR Sensor — Slot 4 | GPIO 6 | Pin 31 | Input | **3.3 V rail** |
+
+> **Tip:** All GND pins on the 40-pin header are equivalent.  Use Pins 6, 9, 14, 20, 25, 30, 34, or 39 to build a shared ground rail on the breadboard.
 
 ---
 
-### I2C LCD Display
+### ⚠️ Critical Voltage Warning — IR Sensors vs Servo & LCD
 
-The LCD uses the PCF8574 I2C backpack. Only 4 wires are needed.
+> **READ THIS BEFORE WIRING ANYTHING**
+>
+> The Raspberry Pi 4B's GPIO input pins are rated for a **maximum of 3.3 V**.  Applying 5 V directly to any GPIO pin **will permanently destroy** the Pi's SoC.
+>
+> **Rule of thumb for this build:**
+>
+> | Component | VCC Supply | Why |
+> |---|---|---|
+> | 16×2 I2C LCD (PCF8574 backpack) | **5 V rail** (Pin 2 or Pin 4) | The LCD backlight and logic require 5 V; the PCF8574 I2C lines are open-drain and 3.3 V tolerant. |
+> | Servo Motor (SG90 / MG996R) | **5 V rail** (Pin 2 or Pin 4) | Servo logic and motor both run at 5 V. |
+> | **All 5 × IR Sensor Modules** | **3.3 V rail** (Pin 1 or Pin 17) | When powered from 3.3 V, the digital OUT pin also swings to 3.3 V, making it GPIO-safe with no additional components needed.  **If you power an IR module from 5 V, its OUT pin will output 5 V and will damage the Pi.** |
+
+---
+
+### Component Wiring Tables
+
+#### 16×2 I2C LCD (PCF8574 Backpack)
 
 ```
 LCD Backpack Pin  →  Raspberry Pi
 ─────────────────────────────────
-VCC               →  5 V rail (Pin 2 or Pin 4)
+VCC               →  5 V rail  (Pin 2 or Pin 4)
 GND               →  GND rail
-SDA               →  GPIO 2  (Pin 3)
-SCL               →  GPIO 3  (Pin 5)
+SDA               →  GPIO 2   (Pin 3)
+SCL               →  GPIO 3   (Pin 5)
 ```
 
-> After wiring, run `sudo i2cdetect -y 1` to confirm the device address (commonly `0x27`).
-> Update `LCD_ADDRESS` in `hardware.py` if your module shows a different address.
+> Run `sudo i2cdetect -y 1` after wiring to confirm the I2C address (typically `0x27`).
+> Update `LCD_I2C_ADDRESS` in `hardware.py` if your module shows `0x3F` or another address.
 
 ---
 
-### Servo Motor (Gate)
+#### Servo Motor (Gate)
 
 ```
-Servo Wire   →  Connection
-──────────────────────────
-Brown/Black  →  GND rail
-Red          →  5 V rail  (use external 5 V supply if servo draws > 500 mA)
-Orange/White →  GPIO 18  (Pin 12)  — Hardware PWM
+Servo Wire    →  Connection
+───────────────────────────
+Brown / Black →  GND rail
+Red           →  5 V rail  (Pin 2 or Pin 4)
+Orange / White→  GPIO 18   (Pin 12)  — Hardware PWM via pigpio
 ```
 
-> `hardware.py` uses **pigpio** to drive Hardware PWM on GPIO 18 for jitter-free servo control.
-> Ensure `pigpiod` daemon is running before starting the application (`sudo pigpiod`).
+> `hardware.py` uses **pigpio** to generate Hardware PWM on GPIO 18 for jitter-free servo control.
+> The `pigpiod` daemon must be running before starting the application.
 
 ---
 
-### Entrance Ultrasonic Sensor (HC-SR04)
+#### IR Sensors — All Five (Entrance + Slots 1–4)
+
+> ⚠️ **Power all IR sensors from the 3.3 V rail.  Never use the 5 V rail.**
 
 ```
-HC-SR04 Pin  →  Connection
-──────────────────────────
-VCC          →  5 V rail
-GND          →  GND rail
-TRIG         →  GPIO 23  (Pin 16)
-ECHO         →  Voltage divider mid-point  (see ⚠️ warning below)
-               Voltage divider output  →  GPIO 24  (Pin 18)
-```
-
-#### Voltage Divider for ECHO Pin
-
-```
-ECHO (5 V) ──── 1 kΩ ──── GPIO 24 (3.3 V safe)
-                     |
-                   2 kΩ
-                     |
-                    GND
-```
-
----
-
-### Slot 3 Ultrasonic Sensor (HC-SR04)
-
-```
-HC-SR04 Pin  →  Connection
-──────────────────────────
-VCC          →  5 V rail
-GND          →  GND rail
-TRIG         →  GPIO 20  (Pin 38)
-ECHO         →  Voltage divider mid-point  (see ⚠️ warning below)
-               Voltage divider output  →  GPIO 21  (Pin 40)
-```
-
-Use an identical 1 kΩ / 2 kΩ voltage divider as described above.
-
----
-
-### Slot 1 IR Sensor
-
-```
-IR Module Pin  →  Connection
-─────────────────────────────
-VCC            →  5 V rail
+IR Module Pin  →  Raspberry Pi
+──────────────────────────────────────────────────────
+VCC            →  3.3 V rail  (Pin 1 or Pin 17)   ← MUST be 3.3 V
 GND            →  GND rail
-OUT            →  GPIO 17  (Pin 11)
+OUT (Entrance) →  GPIO 17  (Pin 11)
+OUT (Slot 1)   →  GPIO 27  (Pin 13)
+OUT (Slot 2)   →  GPIO 22  (Pin 15)
+OUT (Slot 3)   →  GPIO 5   (Pin 29)
+OUT (Slot 4)   →  GPIO 6   (Pin 31)
 ```
 
-> IR sensor modules with on-board LDO regulators typically output a 3.3 V–compatible signal.
-> Verify your module's datasheet; if the output swings to 5 V, add a voltage divider.
+Each IR module shares the same 3.3 V and GND rails on the breadboard; only the OUT wire is unique per sensor.
 
 ---
 
-### Slot 2 IR Sensor
+#### Quick-Reference Pin Diagram
 
 ```
-IR Module Pin  →  Connection
-─────────────────────────────
-VCC            →  5 V rail
-GND            →  GND rail
-OUT            →  GPIO 27  (Pin 13)
-```
-
----
-
-### Raspberry Pi Camera Module
-
-1. Gently lift the locking tab on the Pi's **CAM/DISPLAY** CSI connector.
-2. Insert the ribbon cable with the **blue backing facing the USB ports**.
-3. Push the locking tab back down.
-4. Enable the camera interface (see [Enable Required Interfaces](#enable-required-interfaces)).
-
----
-
-## ⚠️ Voltage Divider Warning (HC-SR04 Echo Pin)
-
-> **CRITICAL — READ BEFORE POWERING ON**
->
-> The HC-SR04 ultrasonic sensor operates at **5 V logic**. Its **ECHO pin outputs up to 5 V**,
-> which **exceeds the 3.3 V maximum** that the Raspberry Pi's GPIO pins can safely accept.
->
-> Connecting the ECHO pin directly to a GPIO pin **WILL permanently damage** the Pi's I/O
-> circuitry and may render the entire board unusable.
->
-> **You MUST use a resistor voltage divider on EVERY HC-SR04 ECHO pin before connecting it to the Pi.**
->
-> Recommended divider (scales 5 V → ~3.33 V):
->
-> ```
-> HC-SR04 ECHO (5 V) ──── R1 (1 kΩ) ──┬──── GPIO pin (3.3 V input)
->                                       │
->                                      R2 (2 kΩ)
->                                       │
->                                      GND
-> ```
->
-> Output voltage = 5 V × R2 / (R1 + R2) = 5 × 2000 / 3000 ≈ **3.33 V** ✓
->
-> This applies to **both** HC-SR04 sensors used in this project:
-> - **Entrance sensor** ECHO → GPIO 24
-> - **Slot 3 sensor** ECHO → GPIO 21
-
----
-
-## Repository File Structure
-
-```
-Smart-Parking-System/
-├── main.py           # State machine & main control loop
-├── hardware.py       # GPIO hardware abstractions (Servo, Ultrasonic, IR, LCD)
-├── vision.py         # ALPR (EasyOCR) with OpenCV preprocessing; returns None on failure
-├── billing.py        # Entry/exit time tracking & dynamic cost calculation
-├── database.json     # Local JSON store for active parked vehicles
-└── README.md         # This file
+Raspberry Pi 4B — 40-pin header (BCM numbering)
+─────────────────────────────────────────────────────────────
+ 3.3 V  [Pin  1] ──► IR VCC rail     [ Pin  2] 5 V ──► Servo + LCD VCC
+ GPIO2  [Pin  3] ◄──► LCD SDA        [ Pin  4] 5 V
+ GPIO3  [Pin  5] ◄──► LCD SCL        [ Pin  6] GND ──► shared GND rail
+         ...
+ GPIO17 [Pin 11] ◄── IR Entrance OUT [Pin 12 ] GPIO18 ──► Servo PWM
+ GPIO27 [Pin 13] ◄── IR Slot 1 OUT   [Pin 14 ] GND
+ GPIO22 [Pin 15] ◄── IR Slot 2 OUT   [Pin 16 ] —
+         ...
+ GPIO5  [Pin 29] ◄── IR Slot 3 OUT   [Pin 30 ] GND
+ GPIO6  [Pin 31] ◄── IR Slot 4 OUT   [Pin 32 ] —
+─────────────────────────────────────────────────────────────
 ```
 
 ---
 
-## Core Logic Flow
+## Camera Configuration
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  STATE: IDLE                                                        │
-│  LCD: "Welcome!  Slots Left: X"                                     │
-│  Loop: poll entrance ultrasonic                                     │
-└───────────────────────────┬─────────────────────────────────────────┘
-                            │  Object detected < 10 cm
-                            ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  STATE: TRIGGERED                                                   │
-│  LCD: "Please stop for scanning"                                    │
-└───────────────────────────┬─────────────────────────────────────────┘
-                            │
-              ┌─────────────▼─────────────┐
-              │   Capacity Check          │
-              │   IR1 + IR2 + Ultrasonic3 │
-              └───────┬───────────────────┘
-                      │ All 3 slots occupied?
-             Yes ◄────┤
-              │       │ No
-              ▼       ▼
-   LCD: "Sorry,  ┌─────────────────────────────────────────────────────┐
-   Parking Full" │  STATE: SCANNING                                    │
-   → RESET       │  Capture frame from Camera Module                  │
-                 │  1. Attempt ALPR (EasyOCR on number plate region)  │
-                 │  2. If OCR returns None → system resets to IDLE    │
-                 └───────────────────────┬─────────────────────────────┘
-                                         │ plate_id obtained
-                                         ▼
-                 ┌─────────────────────────────────────────────────────┐
-                 │  STATE: ENTRY & ALLOCATION                          │
-                 │  Find lowest free slot (1, 2, or 3)                │
-                 │  Write {plate_id, entry_time, slot} → database.json│
-                 │  LCD: "Welcome [Plate] / Go to Slot [X]"           │
-                 │  Open servo gate → wait 5 s → close gate           │
-                 └───────────────────────┬─────────────────────────────┘
-                                         │
-                                         ▼
-                 ┌─────────────────────────────────────────────────────┐
-                 │  STATE: PARKED (background polling)                 │
-                 │  Continuously poll all slot sensors (debounced)    │
-                 │  IR sensors: 3-second stable state before update   │
-                 └───────────────────────┬─────────────────────────────┘
-                                         │ Slot sensor: Occupied → Empty
-                                         ▼
-                 ┌─────────────────────────────────────────────────────┐
-                 │  STATE: EXIT & BILLING                              │
-                 │  Retrieve entry_time + slot from database.json     │
-                 │  Calculate bill (see Dynamic Pricing below)        │
-                 │  Print final bill to terminal                      │
-                 │  Remove vehicle record from database.json          │
-                 │  Update LCD: "Welcome!  Slots Left: X"             │
-                 └─────────────────────────────────────────────────────┘
+`vision.py` uses `cv2.VideoCapture` to open the camera.  No CSI ribbon cable or `picamera2` library is required.  Choose the option that matches your setup:
+
+### Option A — USB Webcam
+
+Plug the webcam into any USB port on the Pi.  In `vision.py`, the capture index defaults to `0` (first USB camera detected by the OS):
+
+```python
+cap = cv2.VideoCapture(0)
 ```
 
----
+If you have multiple USB devices, try index `1`, `2`, etc., or use the device path directly:
 
-## Dynamic Pricing
-
-| Time Period | Rate |
-|---|---|
-| Off-peak (all hours except 17:00–22:00) | **Rs. 50 / hour** |
-| Peak hours (17:00–22:00) | **Rs. 75 / hour** |
-
-The billing engine (`billing.py`) splits the parked duration across off-peak and peak hour windows and charges each segment at the appropriate rate. Partial hours are billed proportionally (per-minute billing).
-
-**Example:**
-
+```python
+cap = cv2.VideoCapture("/dev/video0")
 ```
-Entry:  2026-04-15 16:30
-Exit:   2026-04-15 18:45
-Total:  2h 15m
 
-Off-peak segment:  16:30 → 17:00  =  30 min  →  Rs. 50/hr  →  Rs. 25.00
-Peak segment:      17:00 → 18:45  =  1h 45m  →  Rs. 75/hr  →  Rs. 131.25
-                                                              ───────────
-                                                 Total Bill:  Rs. 156.25
+### Option B — Mobile Phone IP Camera (IP Webcam)
+
+1. Install the **IP Webcam** app on your Android phone (or any RTSP streaming app on iOS/Android).
+2. Start the server in the app and note the URL displayed on-screen (e.g. `http://192.168.1.42:8080/video`).
+3. In `vision.py`, replace the capture argument with the full stream URL:
+
+```python
+cap = cv2.VideoCapture("http://192.168.1.42:8080/video")
 ```
+
+> **Tip:** Ensure the Pi and the phone are connected to the **same Wi-Fi network**.  For best ALPR results, position the camera so the licence plate fills at least 25% of the frame width and is well-lit.
 
 ---
 
@@ -335,20 +213,19 @@ Peak segment:      17:00 → 18:45  =  1h 45m  →  Rs. 75/hr  →  Rs. 131.25
 ### Prerequisites
 
 - Raspberry Pi OS (64-bit Lite or Desktop) — **Bullseye or Bookworm**
-- Python 3.9+
+- Python 3.9 or newer
 - Internet connection for initial package installation
 
 ---
 
-### Enable Required Interfaces
+### Step 1 — Enable I2C
 
 Run `sudo raspi-config` and enable:
 
-1. **Interface Options → Camera** (legacy camera stack, if using libcamera-incompatible OpenCV builds)
-2. **Interface Options → I2C** (for the LCD)
-3. **Interface Options → SSH** (recommended for headless setup)
+1. **Interface Options → I2C** (required for the LCD)
+2. **Interface Options → SSH** *(recommended for headless operation)*
 
-Then reboot:
+Reboot after making changes:
 
 ```bash
 sudo reboot
@@ -356,83 +233,90 @@ sudo reboot
 
 ---
 
-### System Dependencies
+### Step 2 — System-Level Dependencies
 
 ```bash
-# Update package lists
+# Refresh package index and upgrade existing packages
 sudo apt update && sudo apt upgrade -y
 
-# OpenCV native libraries
-sudo apt install -y python3-opencv libopencv-dev
-
-# pigpio daemon (Hardware PWM for servo)
+# pigpio daemon — Hardware PWM for the servo
 sudo apt install -y pigpio python3-pigpio
 
-# I2C tools (scan for LCD address)
+# I2C tools — used to scan for the LCD I2C address
 sudo apt install -y i2c-tools
 
-# libcamera / picamera2 support
-sudo apt install -y python3-picamera2
+# OpenCV system libraries
+sudo apt install -y libopencv-dev
 
-# EasyOCR native dependencies (BLAS/LAPACK for torch)
-sudo apt install -y libatlas-base-dev
+# EasyOCR / PyTorch native math libraries
+sudo apt install -y libatlas-base-dev libopenblas-dev
 ```
 
-Enable and start the pigpio daemon so it auto-starts on boot:
+Enable the pigpio daemon to start automatically on boot:
 
 ```bash
 sudo systemctl enable pigpiod
 sudo systemctl start pigpiod
 ```
 
-Verify the I2C LCD address:
+Confirm the LCD is detected on the I2C bus:
 
 ```bash
 sudo i2cdetect -y 1
+# A device address (e.g. 27 or 3f) should appear in the grid.
 ```
 
 ---
 
-### Python Dependencies
+### Step 3 — Python Dependencies
 
 ```bash
-# Create and activate a virtual environment (recommended)
+# Create and activate a virtual environment (strongly recommended)
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install Python packages
+# Core dependencies
 pip install --upgrade pip
-pip install RPi.GPIO pigpio
-pip install RPLCD          # I2C LCD driver
-pip install opencv-python-headless
-pip install easyocr
-pip install picamera2
+pip install RPi.GPIO          # GPIO control for IR sensors
+pip install pigpio            # Hardware PWM for servo
+pip install RPLCD             # I2C LCD driver (PCF8574 backpack)
+
+# Computer vision & ALPR
+pip install opencv-python     # OpenCV for frame capture and preprocessing
+pip install easyocr           # EasyOCR for licence plate text extraction
 ```
 
-> **Note:** `easyocr` pulls in PyTorch. On a Pi 4 this can take 10–20 minutes to install.
-> Pre-download wheels on a faster machine if time is critical.
+> **Note on install time:** `easyocr` depends on PyTorch, which is a large package (~500 MB wheel on ARM).  On a Raspberry Pi 4B, `pip install easyocr` can take **15–25 minutes**.  Ensure a stable internet connection and consider using a swap file if you encounter memory errors during installation:
+>
+> ```bash
+> sudo dphys-swapfile swapoff
+> sudo sed -i 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=2048/' /etc/dphys-swapfile
+> sudo dphys-swapfile setup && sudo dphys-swapfile swapon
+> ```
 
 ---
 
-### Run the System
+### Step 4 — Run the System
 
 ```bash
-# Ensure pigpio daemon is running
+# Make sure the pigpio daemon is running
 sudo systemctl start pigpiod
 
-# Activate virtual environment
+# Activate the virtual environment
 source .venv/bin/activate
 
 # Start the parking system
 python main.py
 ```
 
-To run as a system service that starts on boot, create `/etc/systemd/system/parking.service`:
+#### Optional — Run as a systemd Service (auto-start on boot)
+
+Create `/etc/systemd/system/parking.service`:
 
 ```ini
 [Unit]
 Description=Smart Parking System
-After=pigpiod.service
+After=pigpiod.service network.target
 Requires=pigpiod.service
 
 [Service]
@@ -446,21 +330,120 @@ WantedBy=multi-user.target
 ```
 
 ```bash
+sudo systemctl daemon-reload
 sudo systemctl enable parking.service
 sudo systemctl start parking.service
 ```
 
 ---
 
+## Repository File Structure
+
+```
+Smart-Parking-System/
+├── main.py           # State machine & main control loop
+├── hardware.py       # GPIO abstractions: Servo, IR sensors (debounced), I2C LCD
+├── vision.py         # ALPR: OpenCV preprocessing → EasyOCR; returns None on failure
+├── billing.py        # Entry/exit time tracking & dynamic cost calculation
+├── database.json     # Local JSON store for active parked vehicles
+└── README.md         # This file
+```
+
+---
+
+## Core Logic Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  STATE: IDLE                                                        │
+│  LCD: "Welcome!  Slots: X/4"                                        │
+│  Loop: poll IR entrance sensor (debounced)                          │
+└───────────────────────────┬─────────────────────────────────────────┘
+                            │  Entrance IR sensor: Occupied (≥ 3 s stable)
+                            ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  STATE: TRIGGERED                                                   │
+│  LCD: "Please wait..."                                              │
+└───────────────────────────┬─────────────────────────────────────────┘
+                            │
+              ┌─────────────▼─────────────┐
+              │   Capacity Check          │
+              │   Poll IR Slots 1–4       │
+              └───────┬───────────────────┘
+                      │ All 4 slots occupied?
+             Yes ◄────┤
+              │       │ No
+              ▼       ▼
+   LCD: "Sorry,  ┌─────────────────────────────────────────────────────┐
+   Lot Full"     │  STATE: SCANNING                                    │
+   → IDLE RESET  │  Capture frame from USB/IP camera (cv2)            │
+                 │  Preprocess: grayscale → bilateral → threshold     │
+                 │  Run EasyOCR → confidence filter → plate regex     │
+                 │  If OCR returns None → reset to IDLE               │
+                 └───────────────────────┬─────────────────────────────┘
+                                         │ plate_id obtained
+                                         ▼
+                 ┌─────────────────────────────────────────────────────┐
+                 │  STATE: ENTRY & ALLOCATION                          │
+                 │  Find lowest free slot (1–4)                       │
+                 │  Write {plate_id, entry_time, slot} → database.json│
+                 │  LCD: "Welcome [Plate] / Slot [X]"                 │
+                 │  Open servo gate → hold 5 s → close gate           │
+                 └───────────────────────┬─────────────────────────────┘
+                                         │
+                                         ▼
+                 ┌─────────────────────────────────────────────────────┐
+                 │  STATE: MONITORING (background thread)              │
+                 │  Poll all 4 slot IR sensors continuously           │
+                 │  Each sensor: must hold new state ≥ 3 s to commit  │
+                 └───────────────────────┬─────────────────────────────┘
+                                         │ Slot IR sensor: Occupied → Free
+                                         ▼
+                 ┌─────────────────────────────────────────────────────┐
+                 │  STATE: EXIT & BILLING                              │
+                 │  Retrieve entry_time + slot from database.json     │
+                 │  Split duration across peak / off-peak windows     │
+                 │  Print itemised bill to terminal                   │
+                 │  Remove vehicle record from database.json          │
+                 │  Update LCD: "Welcome!  Slots: X/4"                │
+                 └─────────────────────────────────────────────────────┘
+```
+
+---
+
+## Dynamic Pricing
+
+| Time Period | Rate |
+|---|---|
+| Off-peak (all hours outside 17:00–22:00) | **Rs. 50 / hour** |
+| Peak hours (17:00–22:00) | **Rs. 75 / hour** |
+
+The billing engine (`billing.py`) splits the parked duration across rate windows and charges each segment proportionally.  Partial hours are billed per-minute.
+
+**Example (same-day, crosses the peak boundary):**
+
+```
+Entry:  2026-04-15 16:30
+Exit:   2026-04-15 18:45
+Total:  2 h 15 min
+
+Off-peak segment:  16:30 → 17:00  =  30 min  →  Rs. 50/hr  →  Rs.  25.00
+Peak segment:      17:00 → 18:45  =  1h 45m  →  Rs. 75/hr  →  Rs. 131.25
+                                                               ──────────
+                                                  Total Bill:  Rs. 156.25
+```
+
+---
+
 ## database.json Schema
 
-The file is created automatically on first run if it does not exist. Its structure is:
+The file is created automatically on first run if it does not exist.
 
 ```json
 {
   "<plate_id>": {
     "entry_time": "<ISO-8601 timestamp>",
-    "slot": <integer 1–3>
+    "slot": "<integer 1–4>"
   }
 }
 ```
@@ -470,35 +453,14 @@ The file is created automatically on first run if it does not exist. Its structu
 ```json
 {
   "MH12AB1234": {
-    "entry_time": "2025-07-15T17:30:00",
+    "entry_time": "2026-04-15T17:30:00",
     "slot": 2
   },
   "KA05XY9988": {
-    "entry_time": "2025-07-15T18:05:00",
+    "entry_time": "2026-04-15T18:05:00",
     "slot": 1
   }
 }
 ```
 
-An **empty object `{}`** means no vehicles are currently parked (the parking lot is fully vacant).
-
----
-
-## Quick-Reference Wiring Diagram (Text)
-
-```
-Raspberry Pi 4B (BCM pin numbers)
-──────────────────────────────────────────────────────────────
- 3.3 V  [Pin 1 ]                       [ Pin 2 ] 5 V ──► rails
- GPIO2  [Pin 3 ] ◄──► LCD SDA          [ Pin 4 ] 5 V
- GPIO3  [Pin 5 ] ◄──► LCD SCL          [ Pin 6 ] GND ──► rail
- GPIO17 [Pin 11] ◄── IR Slot 1 OUT     [Pin 12 ] GPIO18 ──► Servo PWM
- GPIO27 [Pin 13] ◄── IR Slot 2 OUT     [Pin 14 ] GND
-              ...
- GPIO23 [Pin 16] ──► Entrance TRIG     [Pin 18 ] GPIO24 ◄── Entrance ECHO*
-              ...
- GPIO20 [Pin 38] ──► Slot3 TRIG        [Pin 40 ] GPIO21 ◄── Slot3 ECHO*
-
- * ECHO pins MUST go through a 1 kΩ / 2 kΩ voltage divider before the GPIO!
-──────────────────────────────────────────────────────────────
-```
+An **empty object `{}`** indicates no vehicles are currently parked (lot is fully vacant).
