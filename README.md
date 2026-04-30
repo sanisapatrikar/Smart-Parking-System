@@ -1,6 +1,6 @@
 # Smart Parking System
 
-A modular, Raspberry Pi 4B–based Smart Parking System for a mall environment. The system uses computer vision (ALPR with QR fallback), ultrasonic and IR sensors, a servo-controlled gate, and a 16×2 I2C LCD to automate vehicle entry, slot allocation, exit detection, and dynamic billing.
+A modular, Raspberry Pi 4B–based Smart Parking System for a mall environment. The system uses computer vision (ALPR via EasyOCR), ultrasonic and IR sensors, a servo-controlled gate, and a 16×2 I2C LCD to automate vehicle entry, slot allocation, exit detection, and dynamic billing.
 
 ---
 
@@ -40,7 +40,7 @@ The project is intentionally split into focused modules rather than a single mon
 |---|---|
 | `main.py` | State machine and core control loop |
 | `hardware.py` | GPIO abstractions: Servo, IR sensors (debounced), Ultrasonic sensors, I2C LCD |
-| `vision.py` | ALPR via EasyOCR; QR-code fallback via OpenCV `QRCodeDetector` |
+| `vision.py` | ALPR via EasyOCR with OpenCV preprocessing; returns `None` if recognition fails (no QR fallback) |
 | `billing.py` | Entry/exit time tracking and dynamic cost calculation |
 | `database.json` | Lightweight local file-store for active parked vehicles |
 
@@ -239,7 +239,7 @@ OUT            →  GPIO 27  (Pin 13)
 Smart-Parking-System/
 ├── main.py           # State machine & main control loop
 ├── hardware.py       # GPIO hardware abstractions (Servo, Ultrasonic, IR, LCD)
-├── vision.py         # ALPR (EasyOCR) with QR-code fallback (OpenCV)
+├── vision.py         # ALPR (EasyOCR) with OpenCV preprocessing; returns None on failure
 ├── billing.py        # Entry/exit time tracking & dynamic cost calculation
 ├── database.json     # Local JSON store for active parked vehicles
 └── README.md         # This file
@@ -274,7 +274,7 @@ Smart-Parking-System/
    Parking Full" │  STATE: SCANNING                                    │
    → RESET       │  Capture frame from Camera Module                  │
                  │  1. Attempt ALPR (EasyOCR on number plate region)  │
-                 │  2. If OCR empty/failed → QR code scan fallback    │
+                 │  2. If OCR returns None → system resets to IDLE    │
                  └───────────────────────┬─────────────────────────────┘
                                          │ plate_id obtained
                                          ▼
@@ -318,8 +318,8 @@ The billing engine (`billing.py`) splits the parked duration across off-peak and
 **Example:**
 
 ```
-Entry:  16:30
-Exit:   18:45
+Entry:  2026-04-15 16:30
+Exit:   2026-04-15 18:45
 Total:  2h 15m
 
 Off-peak segment:  16:30 → 17:00  =  30 min  →  Rs. 50/hr  →  Rs. 25.00
