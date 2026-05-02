@@ -5,7 +5,7 @@ Hardware used
 -------------
   - Raspberry Pi 4B
   - 16x2 I2C LCD (PCF8574 backpack) on GPIO 2 (SDA) / GPIO 3 (SCL)
-  - Servo gate on GPIO 18 (pigpio hardware PWM)
+  - Servo gate on GPIO 18 (RPi.GPIO software PWM)
   - 5x IR proximity sensors (3.3 V rail):
         Entrance : GPIO 17
         Slot 1   : GPIO 27
@@ -20,7 +20,6 @@ State machine
   Allocate  → Assign lowest free slot, open gate, return to Idle.
 
 Run with:
-    sudo systemctl start pigpiod
     source .venv/bin/activate
     python main.py
 """

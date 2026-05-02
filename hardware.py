@@ -5,14 +5,13 @@ import logging
 import threading
 import time
 
-import pigpio
 import RPi.GPIO as GPIO
 from RPLCD.i2c import CharLCD
 
 logger = logging.getLogger(__name__)
 
 # BCM pin assignments
-SERVO_PIN       = 18   # Hardware PWM0
+SERVO_PIN       = 18   # Software PWM (RPi.GPIO)
 IR_ENTRANCE_PIN = 17
 IR_SLOT1_PIN    = 27
 IR_SLOT2_PIN    = 22
@@ -70,30 +69,42 @@ class LCDDisplay:
         self._lcd.close(clear=True)
 
 
+_SERVO_FREQ_HZ = 50                              # standard servo frequency
+_PWM_PERIOD_US = 1_000_000 / _SERVO_FREQ_HZ     # 20 000 µs per cycle
+
+
 class ServoGate:
-    # Requires pigpiod: sudo systemctl start pigpiod
+    # Uses RPi.GPIO software PWM on SERVO_PIN.
+    # Duty cycle = pulse_width_µs / 20 000 × 100
+    #   open  (1500 µs) → 7.5 %
+    #   closed ( 500 µs) → 2.5 %
     def __init__(self, pin: int = SERVO_PIN) -> None:
         self._pin = pin
-        self._pi = pigpio.pi()
-        if not self._pi.connected:
-            raise RuntimeError("pigpio daemon not running — sudo systemctl start pigpiod")
-        self._pi.set_mode(self._pin, pigpio.OUTPUT)
+        GPIO.setup(self._pin, GPIO.OUT)
+        self._pwm = GPIO.PWM(self._pin, _SERVO_FREQ_HZ)
+        self._pwm.start(0)
         self.close()
 
+    @staticmethod
+    def _pw_to_duty(pulse_us: float) -> float:
+        return pulse_us / _PWM_PERIOD_US * 100.0
+
     def open(self) -> None:
-        self._pi.set_servo_pulsewidth(self._pin, SERVO_OPEN_PW)
+        self._pwm.ChangeDutyCycle(self._pw_to_duty(SERVO_OPEN_PW))
 
     def close(self) -> None:
-        self._pi.set_servo_pulsewidth(self._pin, SERVO_CLOSED_PW)
+        self._pwm.ChangeDutyCycle(self._pw_to_duty(SERVO_CLOSED_PW))
 
     def open_for(self, seconds: float = 5.0) -> None:
         self.open()
         time.sleep(seconds)
         self.close()
+        time.sleep(0.3)               # let servo reach closed position
+        self._pwm.ChangeDutyCycle(0)  # stop pulsing to reduce idle jitter
 
     def cleanup(self) -> None:
-        self._pi.set_servo_pulsewidth(self._pin, 0)
-        self._pi.stop()
+        self._pwm.ChangeDutyCycle(0)
+        self._pwm.stop()
 
 
 class DebouncedIRSensor:

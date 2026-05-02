@@ -128,11 +128,10 @@ Servo Wire    →  Connection
 ───────────────────────────
 Brown / Black →  GND rail
 Red           →  5 V rail  (Pin 2 or Pin 4)
-Orange / White→  GPIO 18   (Pin 12)  — Hardware PWM via pigpio
+Orange / White→  GPIO 18   (Pin 12)  — Software PWM via RPi.GPIO
 ```
 
-> `hardware.py` uses **pigpio** to generate Hardware PWM on GPIO 18 for jitter-free servo control.
-> The `pigpiod` daemon must be running before starting the application.
+> `hardware.py` uses **RPi.GPIO** software PWM on GPIO 18 for servo control.
 
 ---
 
@@ -239,9 +238,6 @@ sudo reboot
 # Refresh package index and upgrade existing packages
 sudo apt update && sudo apt upgrade -y
 
-# pigpio daemon — Hardware PWM for the servo
-sudo apt install -y pigpio python3-pigpio
-
 # I2C tools — used to scan for the LCD I2C address
 sudo apt install -y i2c-tools
 
@@ -250,13 +246,6 @@ sudo apt install -y libopencv-dev
 
 # EasyOCR / PyTorch native math libraries
 sudo apt install -y libatlas-base-dev libopenblas-dev
-```
-
-Enable the pigpio daemon to start automatically on boot:
-
-```bash
-sudo systemctl enable pigpiod
-sudo systemctl start pigpiod
 ```
 
 Confirm the LCD is detected on the I2C bus:
@@ -277,8 +266,7 @@ source .venv/bin/activate
 
 # Core dependencies
 pip install --upgrade pip
-pip install RPi.GPIO          # GPIO control for IR sensors
-pip install pigpio            # Hardware PWM for servo
+pip install RPi.GPIO          # GPIO control for IR sensors and servo PWM
 pip install RPLCD             # I2C LCD driver (PCF8574 backpack)
 
 # Computer vision & ALPR
@@ -299,9 +287,6 @@ pip install easyocr           # EasyOCR for licence plate text extraction
 ### Step 4 — Run the System
 
 ```bash
-# Make sure the pigpio daemon is running
-sudo systemctl start pigpiod
-
 # Activate the virtual environment
 source .venv/bin/activate
 
@@ -316,8 +301,7 @@ Create `/etc/systemd/system/parking.service`:
 ```ini
 [Unit]
 Description=Smart Parking System
-After=pigpiod.service network.target
-Requires=pigpiod.service
+After=network.target
 
 [Service]
 ExecStart=/home/pi/Smart-Parking-System/.venv/bin/python /home/pi/Smart-Parking-System/main.py
