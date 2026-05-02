@@ -5,7 +5,6 @@ import logging
 import threading
 import time
 
-import pigpio
 import RPi.GPIO as GPIO
 from RPLCD.i2c import CharLCD
 
@@ -71,20 +70,20 @@ class LCDDisplay:
 
 
 class ServoGate:
-    # Requires pigpiod: sudo systemctl start pigpiod
     def __init__(self, pin: int = SERVO_PIN) -> None:
         self._pin = pin
-        self._pi = pigpio.pi()
-        if not self._pi.connected:
-            raise RuntimeError("pigpio daemon not running — sudo systemctl start pigpiod")
-        self._pi.set_mode(self._pin, pigpio.OUTPUT)
-        self.close()
+        GPIO.setup(self._pin, GPIO.OUT)
+        # Set up Software PWM at 50Hz
+        self._pwm = GPIO.PWM(self._pin, 50)
+        self._pwm.start(0)
 
     def open(self) -> None:
-        self._pi.set_servo_pulsewidth(self._pin, SERVO_OPEN_PW)
+        self._pwm.ChangeDutyCycle(7.5)  # ~90 degrees open
 
     def close(self) -> None:
-        self._pi.set_servo_pulsewidth(self._pin, SERVO_CLOSED_PW)
+        self._pwm.ChangeDutyCycle(2.5)  # ~0 degrees closed
+        time.sleep(0.5)                 # Give it time to physically move
+        self._pwm.ChangeDutyCycle(0)    # Stop sending power (prevents buzzing)
 
     def open_for(self, seconds: float = 5.0) -> None:
         self.open()
@@ -92,9 +91,7 @@ class ServoGate:
         self.close()
 
     def cleanup(self) -> None:
-        self._pi.set_servo_pulsewidth(self._pin, 0)
-        self._pi.stop()
-
+        self._pwm.stop()
 
 class DebouncedIRSensor:
     # Active-low: OUT pin pulled LOW when obstacle detected.
