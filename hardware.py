@@ -41,32 +41,67 @@ def cleanup_gpio() -> None:
 
 
 class LCDDisplay:
+    """16x2 I2C LCD wrapper with graceful fallback to terminal output.
+
+    If the I2C display is absent or disconnects at any point, all messages
+    are printed to stdout so the rest of the system keeps running without
+    interruption.
+    """
+
     def __init__(self, address: int = LCD_I2C_ADDRESS, port: int = LCD_I2C_PORT) -> None:
-        self._lcd = CharLCD(
-            i2c_expander="PCF8574",
-            address=address,
-            port=port,
-            cols=LCD_COLS,
-            rows=LCD_ROWS,
-            dotsize=8,
-            charmap="A02",
-            auto_linebreaks=False,
-        )
-        self.clear()
+        self._available = False
+        try:
+            self._lcd = CharLCD(
+                i2c_expander="PCF8574",
+                address=address,
+                port=port,
+                cols=LCD_COLS,
+                rows=LCD_ROWS,
+                dotsize=8,
+                charmap="A02",
+                auto_linebreaks=False,
+            )
+            self._available = True
+            self._lcd.clear()
+        except Exception as exc:
+            logger.warning(
+                "LCD not available (I2C init failed: %s) — output will go to terminal.",
+                exc,
+            )
 
     def write(self, line1: str = "", line2: str = "") -> None:
-        # Pad/truncate so stale characters are always overwritten
-        self._lcd.clear()
-        self._lcd.cursor_pos = (0, 0)
-        self._lcd.write_string(line1[:LCD_COLS].ljust(LCD_COLS))
-        self._lcd.cursor_pos = (1, 0)
-        self._lcd.write_string(line2[:LCD_COLS].ljust(LCD_COLS))
+        # Always echo to terminal so output is never silently lost
+        print(f"[LCD] {line1} | {line2}")
+        if not self._available:
+            return
+        try:
+            self._lcd.clear()
+            self._lcd.cursor_pos = (0, 0)
+            self._lcd.write_string(line1[:LCD_COLS].ljust(LCD_COLS))
+            self._lcd.cursor_pos = (1, 0)
+            self._lcd.write_string(line2[:LCD_COLS].ljust(LCD_COLS))
+        except Exception as exc:
+            logger.warning(
+                "LCD write failed: %s — switching to terminal-only output.", exc
+            )
+            self._available = False
 
     def clear(self) -> None:
-        self._lcd.clear()
+        if not self._available:
+            return
+        try:
+            self._lcd.clear()
+        except Exception as exc:
+            logger.warning("LCD clear failed: %s", exc)
+            self._available = False
 
     def close(self) -> None:
-        self._lcd.close(clear=True)
+        if not self._available:
+            return
+        try:
+            self._lcd.close(clear=True)
+        except Exception as exc:
+            logger.warning("LCD close failed: %s", exc)
 
 
 class ServoGate:
