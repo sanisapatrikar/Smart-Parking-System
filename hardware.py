@@ -70,8 +70,8 @@ class LCDDisplay:
             )
 
     def write(self, line1: str = "", line2: str = "") -> None:
-        # Always echo to terminal so output is never silently lost
-        print(f"[LCD] {line1} | {line2}")
+        # Always echo to the logger so output is never silently lost
+        logger.info("[LCD] %s | %s", line1, line2)
         if not self._available:
             return
         try:

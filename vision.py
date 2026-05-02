@@ -59,8 +59,8 @@ def preprocess_frame(frame: np.ndarray) -> np.ndarray:
 
 
 def extract_plate(frame: np.ndarray) -> Optional[str]:
-    processed = preprocess_frame(frame)
     try:
+        processed = preprocess_frame(frame)
         data = pytesseract.image_to_data(
             processed,
             config=_TESS_CONFIG,
@@ -75,6 +75,7 @@ def extract_plate(frame: np.ndarray) -> Optional[str]:
         try:
             conf_val = int(conf)
         except (ValueError, TypeError):
+            logger.debug("Skipping token %r: non-integer confidence %r", text, conf)
             continue
         if conf_val >= _OCR_CONFIDENCE_THRESHOLD:
             normalised = _normalise(text)
