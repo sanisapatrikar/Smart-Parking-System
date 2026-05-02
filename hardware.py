@@ -94,16 +94,15 @@ class ServoGate:
 
     def close(self) -> None:
         self._pwm.ChangeDutyCycle(self._pw_to_duty(SERVO_CLOSED_PW))
+        time.sleep(0.3)               # let servo reach closed position
+        self._pwm.ChangeDutyCycle(0)  # stop pulsing to reduce idle jitter
 
     def open_for(self, seconds: float = 5.0) -> None:
         self.open()
         time.sleep(seconds)
         self.close()
-        time.sleep(0.3)               # let servo reach closed position
-        self._pwm.ChangeDutyCycle(0)  # stop pulsing to reduce idle jitter
 
     def cleanup(self) -> None:
-        self._pwm.ChangeDutyCycle(0)
         self._pwm.stop()
 
 
