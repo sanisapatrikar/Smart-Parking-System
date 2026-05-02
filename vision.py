@@ -1,4 +1,4 @@
-# vision.py — Licence plate recognition via OpenCV + EasyOCR
+# vision.py — Licence plate recognition via OpenCV + Tesseract OCR
 # Camera source: set _CAMERA_SOURCE = 0 for USB webcam, or a URL for IP Webcam.
 
 import logging
@@ -7,28 +7,25 @@ import time
 from typing import Optional
 
 import cv2
-import easyocr
 import numpy as np
+import pytesseract
 
 logger = logging.getLogger(__name__)
 
 # Change to e.g. "http://192.168.1.42:8080/video" for an IP Webcam stream
 _CAMERA_SOURCE = "http://100.64.23.17:8080/video"
 
-_OCR_CONFIDENCE_THRESHOLD = 0.3
+# Tesseract confidence scores are 0–100 (integers)
+_OCR_CONFIDENCE_THRESHOLD = 30
 
 # Indian plate format: MH12AB1234
 _PLATE_RE = re.compile(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}$")
 
-_reader: Optional[easyocr.Reader] = None
-
-
-def _get_reader() -> easyocr.Reader:
-    global _reader
-    if _reader is None:
-        logger.info("Loading EasyOCR model...")
-        _reader = easyocr.Reader(["en"], gpu=False)
-    return _reader
+# PSM 8 = single word; whitelist keeps only plate-legal characters
+_TESS_CONFIG = (
+    "--psm 8 --oem 3 "
+    "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+)
 
 
 def _normalise(text: str) -> str:
@@ -62,21 +59,29 @@ def preprocess_frame(frame: np.ndarray) -> np.ndarray:
 
 
 def extract_plate(frame: np.ndarray) -> Optional[str]:
-    reader = _get_reader()
     try:
-        results = reader.readtext(preprocess_frame(frame), detail=1, paragraph=False)
+        processed = preprocess_frame(frame)
+        data = pytesseract.image_to_data(
+            processed,
+            config=_TESS_CONFIG,
+            output_type=pytesseract.Output.DICT,
+        )
     except Exception as exc:
-        logger.error("EasyOCR error: %s", exc)
+        logger.error("Tesseract error: %s", exc)
         return None
 
-    if not results:
-        return None
+    confident = []
+    for text, conf in zip(data["text"], data["conf"]):
+        try:
+            conf_val = int(conf)
+        except (ValueError, TypeError):
+            logger.debug("Skipping token %r: non-integer confidence %r", text, conf)
+            continue
+        if conf_val >= _OCR_CONFIDENCE_THRESHOLD:
+            normalised = _normalise(text)
+            if normalised:
+                confident.append((normalised, conf_val))
 
-    confident = [
-        (_normalise(text), conf)
-        for _bbox, text, conf in results
-        if conf >= _OCR_CONFIDENCE_THRESHOLD
-    ]
     if not confident:
         return None
 
