@@ -13,7 +13,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 # Change to e.g. "http://192.168.1.42:8080/video" for an IP Webcam stream
-_CAMERA_SOURCE = 0
+_CAMERA_SOURCE = "http://100.64.23.17:8080/video"
 
 _OCR_CONFIDENCE_THRESHOLD = 0.3
 
