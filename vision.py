@@ -12,18 +12,19 @@ import pytesseract
 
 logger = logging.getLogger(__name__)
 
-# Change to e.g. "http://192.168.1.42:8080/video" for an IP Webcam stream
+# Change to your mobile hotspot IP Webcam stream
 _CAMERA_SOURCE = "http://100.64.23.17:8080/video"
 
 # Tesseract confidence scores are 0–100 (integers)
 _OCR_CONFIDENCE_THRESHOLD = 30
 
 # Indian plate format: MH12AB1234
-_PLATE_RE = re.compile(r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}$")
+# FIX: Removed strict ^ and $ anchors to allow minor noise detection
+_PLATE_RE = re.compile(r"[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}")
 
-# PSM 8 = single word; whitelist keeps only plate-legal characters
+# FIX: PSM 11 (Sparse text search) instead of PSM 8 (Single word)
 _TESS_CONFIG = (
-    "--psm 8 --oem 3 "
+    "--psm 11 --oem 3 "
     "-c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
@@ -49,13 +50,9 @@ def capture_frame() -> Optional[np.ndarray]:
 
 
 def preprocess_frame(frame: np.ndarray) -> np.ndarray:
-    gray    = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    blurred = cv2.bilateralFilter(gray, d=11, sigmaColor=17, sigmaSpace=17)
-    return cv2.adaptiveThreshold(
-        blurred, 255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
-        blockSize=11, C=2,
-    )
+    # FIX: Simplify preprocessing. Just grayscale, no adaptive thresholding.
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    return gray
 
 
 def extract_plate(frame: np.ndarray) -> Optional[str]:
@@ -86,7 +83,7 @@ def extract_plate(frame: np.ndarray) -> Optional[str]:
         return None
 
     # Prefer tokens matching the Indian plate pattern
-    plate_matches = [(t, c) for t, c in confident if _PLATE_RE.match(t)]
+    plate_matches = [(t, c) for t, c in confident if _PLATE_RE.search(t)] # Changed .match to .search
     if plate_matches:
         best, _ = max(plate_matches, key=lambda x: x[1])
         logger.info("Plate: %s", best)
