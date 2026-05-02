@@ -7,18 +7,39 @@ A modular, Raspberry Pi 4B–based Smart Parking System designed for a mall envi
 ## Table of Contents
 
 1. [Project Overview](#project-overview)
-2. [Hardware Requirements](#hardware-requirements)
-3. [Master Wiring Guide](#master-wiring-guide)
-4. [Camera Configuration](#camera-configuration)
-5. [Software Setup](#software-setup)
-6. [Repository File Structure](#repository-file-structure)
-7. [Core Logic Flow](#core-logic-flow)
-8. [Dynamic Pricing](#dynamic-pricing)
-9. [database.json Schema](#databasejson-schema)
+2. [Circuit Diagram](#circuit-diagram)
+3. [Hardware Requirements](#hardware-requirements)
+4. [Master Wiring Guide](#master-wiring-guide)
+5. [Camera Configuration](#camera-configuration)
+6. [Software Setup](#software-setup)
+7. [Repository File Structure](#repository-file-structure)
+8. [Core Logic Flow](#core-logic-flow)
+9. [Dynamic Pricing](#dynamic-pricing)
+10. [database.json Schema](#databasejson-schema)
 
 ---
 
-## Project Overview
+## Circuit Diagram
+
+The file [`circuit_diagram.svg`](circuit_diagram.svg) contains a full visual schematic of all hardware connections.
+
+![Circuit Diagram](circuit_diagram.svg)
+
+**What the diagram shows:**
+
+| Layer | Detail |
+|---|---|
+| **Power buses** | Left-side 3.3 V bus (orange) and GND bus (black) feed all five IR sensors. Right-side 5 V bus (red) and GND bus (black) feed the LCD and servo. |
+| **IR Proximity Sensors** | Five modules (Entrance + Slots 1–4) — each has VCC → 3.3 V, GND → GND rail, and OUT → the corresponding BCM GPIO pin. |
+| **16×2 I²C LCD** | VCC → 5 V; GND → GND; SDA → GPIO 2 (Pin 3); SCL → GPIO 3 (Pin 5). |
+| **Servo Motor** | VCC → 5 V; GND → GND; Signal → GPIO 18 / hardware PWM (Pin 12). |
+| **USB Webcam** | Connected via USB for licence-plate capture (EasyOCR). |
+
+> Open `circuit_diagram.svg` in any modern web browser or SVG viewer for the full interactive diagram.
+
+---
+
+
 
 The Smart Parking System automates the complete vehicle lifecycle inside a mall car park:
 

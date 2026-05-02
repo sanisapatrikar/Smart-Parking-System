@@ -1,0 +1,482 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 980"
+     width="1440" height="980" font-family="'Segoe UI', Arial, sans-serif">
+
+  <!-- ═══ BACKGROUND ═══ -->
+  <rect width="1440" height="980" fill="#eceff1"/>
+  <rect x="12" y="12" width="1416" height="956" rx="14" fill="white"
+        stroke="#cfd8dc" stroke-width="1.5"/>
+
+  <!-- ═══ TITLE ═══ -->
+  <text x="720" y="44" text-anchor="middle" font-size="22" font-weight="bold"
+        fill="#1a237e">Smart Parking System — Circuit Diagram</text>
+  <text x="720" y="65" text-anchor="middle" font-size="12" fill="#546e7a">
+    Raspberry Pi 4B · 16×2 I²C LCD (PCF8574) · SG90 Servo Gate · 5× IR Proximity Sensors · USB Webcam
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  POWER BUSES                                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- Left: 3.3 V bus (orange) -->
+  <line x1="112" y1="92" x2="112" y2="668" stroke="#e65100" stroke-width="3.5"/>
+  <rect x="83" y="76" width="58" height="20" rx="4" fill="#e65100"/>
+  <text x="112" y="90" text-anchor="middle" font-size="11" font-weight="bold"
+        fill="white">3.3 V</text>
+
+  <!-- Left: GND bus (dark) -->
+  <line x1="158" y1="92" x2="158" y2="800" stroke="#263238" stroke-width="3.5"/>
+  <rect x="129" y="76" width="58" height="20" rx="4" fill="#263238"/>
+  <text x="158" y="90" text-anchor="middle" font-size="11" font-weight="bold"
+        fill="white">GND</text>
+
+  <!-- Right: 5 V bus (red) -->
+  <line x1="1290" y1="92" x2="1290" y2="410" stroke="#b71c1c" stroke-width="3.5"/>
+  <rect x="1261" y="76" width="58" height="20" rx="4" fill="#b71c1c"/>
+  <text x="1290" y="90" text-anchor="middle" font-size="11" font-weight="bold"
+        fill="white">5 V</text>
+
+  <!-- Right: GND bus (dark) -->
+  <line x1="1334" y1="92" x2="1334" y2="800" stroke="#263238" stroke-width="3.5"/>
+  <rect x="1305" y="76" width="58" height="20" rx="4" fill="#263238"/>
+  <text x="1334" y="90" text-anchor="middle" font-size="11" font-weight="bold"
+        fill="white">GND</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  RASPBERRY PI 4B                                                   -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- PCB body -->
+  <rect x="560" y="78" width="256" height="798" rx="14"
+        fill="#1b5e20" stroke="#0a3a0a" stroke-width="3"/>
+  <!-- Header band -->
+  <rect x="570" y="88" width="236" height="30" rx="7" fill="#2e7d32"/>
+  <text x="688" y="108" text-anchor="middle" font-size="14" font-weight="bold"
+        fill="white">Raspberry Pi 4B</text>
+  <!-- Sub-label -->
+  <text x="688" y="126" text-anchor="middle" font-size="10" fill="#a5d6a7">
+    BCM GPIO Numbering
+  </text>
+  <!-- USB port strip (bottom of Pi) -->
+  <rect x="624" y="834" width="128" height="28" rx="5" fill="#1565c0"
+        stroke="#0d47a1" stroke-width="1.5"/>
+  <text x="688" y="852" text-anchor="middle" font-size="10" fill="white">
+    USB 3.0 Ports
+  </text>
+
+  <!-- ── LEFT PINS (input side) ── -->
+  <!-- Pin 1: 3.3V -->
+  <circle cx="560" cy="148" r="7" fill="#e65100" stroke="white" stroke-width="2"/>
+  <text x="574" y="153" font-size="10" fill="#ffccbc">3.3V · Pin 1</text>
+
+  <!-- Pin 11: GPIO17 → IR Entrance -->
+  <circle cx="560" cy="300" r="7" fill="#43a047" stroke="#c8e6c9" stroke-width="2"/>
+  <text x="574" y="305" font-size="10" fill="white">GPIO 17 · Pin 11</text>
+
+  <!-- Pin 13: GPIO27 → IR Slot 1 -->
+  <circle cx="560" cy="363" r="7" fill="#43a047" stroke="#c8e6c9" stroke-width="2"/>
+  <text x="574" y="368" font-size="10" fill="white">GPIO 27 · Pin 13</text>
+
+  <!-- Pin 15: GPIO22 → IR Slot 2 -->
+  <circle cx="560" cy="426" r="7" fill="#43a047" stroke="#c8e6c9" stroke-width="2"/>
+  <text x="574" y="431" font-size="10" fill="white">GPIO 22 · Pin 15</text>
+
+  <!-- Pin 29: GPIO5 → IR Slot 3 -->
+  <circle cx="560" cy="558" r="7" fill="#43a047" stroke="#c8e6c9" stroke-width="2"/>
+  <text x="574" y="563" font-size="10" fill="white">GPIO 5  · Pin 29</text>
+
+  <!-- Pin 31: GPIO6 → IR Slot 4 -->
+  <circle cx="560" cy="621" r="7" fill="#43a047" stroke="#c8e6c9" stroke-width="2"/>
+  <text x="574" y="626" font-size="10" fill="white">GPIO 6  · Pin 31</text>
+
+  <!-- Pin 6: GND (left) -->
+  <circle cx="560" cy="742" r="7" fill="#263238" stroke="#b0bec5" stroke-width="2"/>
+  <text x="574" y="747" font-size="10" fill="white">GND · Pin 6</text>
+
+  <!-- ── RIGHT PINS (output side) ── -->
+  <!-- Pin 2: 5V -->
+  <circle cx="816" cy="148" r="7" fill="#b71c1c" stroke="white" stroke-width="2"/>
+  <text x="802" y="153" text-anchor="end" font-size="10" fill="#ffcdd2">Pin 2 · 5V</text>
+
+  <!-- Pin 3: GPIO2 / SDA -->
+  <circle cx="816" cy="244" r="7" fill="#1565c0" stroke="#90caf9" stroke-width="2"/>
+  <text x="802" y="249" text-anchor="end" font-size="10" fill="white">Pin 3 · GPIO 2 / SDA</text>
+
+  <!-- Pin 5: GPIO3 / SCL -->
+  <circle cx="816" cy="264" r="7" fill="#00695c" stroke="#80cbc4" stroke-width="2"/>
+  <text x="802" y="269" text-anchor="end" font-size="10" fill="white">Pin 5 · GPIO 3 / SCL</text>
+
+  <!-- Pin 12: GPIO18 / PWM -->
+  <circle cx="816" cy="324" r="7" fill="#e65100" stroke="#ffcc80" stroke-width="2"/>
+  <text x="802" y="329" text-anchor="end" font-size="10" fill="white">Pin 12 · GPIO 18 / PWM</text>
+
+  <!-- Pin 14: GND (right) -->
+  <circle cx="816" cy="742" r="7" fill="#263238" stroke="#b0bec5" stroke-width="2"/>
+  <text x="802" y="747" text-anchor="end" font-size="10" fill="white">Pin 14 · GND</text>
+
+  <!-- ── Pi → Power Bus dashed connections ── -->
+  <!-- Pi 3.3V → left 3.3V bus -->
+  <line x1="560" y1="148" x2="112" y2="148" stroke="#e65100"
+        stroke-width="2" stroke-dasharray="8,4" opacity="0.85"/>
+  <circle cx="112" cy="148" r="5" fill="#e65100"/>
+
+  <!-- Pi GND-L → left GND bus -->
+  <line x1="560" y1="742" x2="158" y2="742" stroke="#263238"
+        stroke-width="2" stroke-dasharray="8,4" opacity="0.85"/>
+  <circle cx="158" cy="742" r="5" fill="#263238"/>
+
+  <!-- Pi 5V → right 5V bus -->
+  <line x1="816" y1="148" x2="1290" y2="148" stroke="#b71c1c"
+        stroke-width="2" stroke-dasharray="8,4" opacity="0.85"/>
+  <circle cx="1290" cy="148" r="5" fill="#b71c1c"/>
+
+  <!-- Pi GND-R → right GND bus -->
+  <line x1="816" y1="742" x2="1334" y2="742" stroke="#263238"
+        stroke-width="2" stroke-dasharray="8,4" opacity="0.85"/>
+  <circle cx="1334" cy="742" r="5" fill="#263238"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  IR SENSORS  (left side, boxes 380–525)                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <!-- IR Sensor macro:
+       box x=380, w=145, h=50; centre y = pin y
+       OUT  → right edge (525) → Pi pin (560)
+       VCC  → left edge (380) at y-11  → 3.3V bus (112)
+       GND  → left edge (380) at y+11  → GND bus  (158)
+  -->
+
+  <!-- ── IR Entrance (GPIO17, y=300) ── -->
+  <rect x="380" y="275" width="145" height="50" rx="9"
+        fill="#f1f8e9" stroke="#388e3c" stroke-width="2.5"/>
+  <text x="452" y="296" text-anchor="middle" font-size="12"
+        font-weight="bold" fill="#1b5e20">IR Sensor</text>
+  <text x="452" y="314" text-anchor="middle" font-size="10"
+        fill="#33691e">Entrance · GPIO 17</text>
+  <!-- OUT → Pi -->
+  <line x1="525" y1="300" x2="560" y2="300" stroke="#388e3c" stroke-width="2.5"/>
+  <circle cx="560" cy="300" r="4" fill="#388e3c"/>
+  <text x="537" y="295" font-size="9" fill="#388e3c">OUT</text>
+  <!-- VCC → 3.3V bus -->
+  <line x1="380" y1="289" x2="112" y2="289" stroke="#e65100" stroke-width="1.5"/>
+  <circle cx="112" cy="289" r="4" fill="#e65100"/>
+  <!-- GND → GND bus -->
+  <line x1="380" y1="311" x2="158" y2="311" stroke="#263238" stroke-width="1.5"/>
+  <circle cx="158" cy="311" r="4" fill="#263238"/>
+
+  <!-- ── IR Slot 1 (GPIO27, y=363) ── -->
+  <rect x="380" y="338" width="145" height="50" rx="9"
+        fill="#f1f8e9" stroke="#388e3c" stroke-width="2.5"/>
+  <text x="452" y="359" text-anchor="middle" font-size="12"
+        font-weight="bold" fill="#1b5e20">IR Sensor</text>
+  <text x="452" y="377" text-anchor="middle" font-size="10"
+        fill="#33691e">Slot 1 · GPIO 27</text>
+  <!-- OUT → Pi -->
+  <line x1="525" y1="363" x2="560" y2="363" stroke="#388e3c" stroke-width="2.5"/>
+  <circle cx="560" cy="363" r="4" fill="#388e3c"/>
+  <text x="537" y="358" font-size="9" fill="#388e3c">OUT</text>
+  <!-- VCC -->
+  <line x1="380" y1="352" x2="112" y2="352" stroke="#e65100" stroke-width="1.5"/>
+  <circle cx="112" cy="352" r="4" fill="#e65100"/>
+  <!-- GND -->
+  <line x1="380" y1="374" x2="158" y2="374" stroke="#263238" stroke-width="1.5"/>
+  <circle cx="158" cy="374" r="4" fill="#263238"/>
+
+  <!-- ── IR Slot 2 (GPIO22, y=426) ── -->
+  <rect x="380" y="401" width="145" height="50" rx="9"
+        fill="#f1f8e9" stroke="#388e3c" stroke-width="2.5"/>
+  <text x="452" y="422" text-anchor="middle" font-size="12"
+        font-weight="bold" fill="#1b5e20">IR Sensor</text>
+  <text x="452" y="440" text-anchor="middle" font-size="10"
+        fill="#33691e">Slot 2 · GPIO 22</text>
+  <!-- OUT → Pi -->
+  <line x1="525" y1="426" x2="560" y2="426" stroke="#388e3c" stroke-width="2.5"/>
+  <circle cx="560" cy="426" r="4" fill="#388e3c"/>
+  <text x="537" y="421" font-size="9" fill="#388e3c">OUT</text>
+  <!-- VCC -->
+  <line x1="380" y1="415" x2="112" y2="415" stroke="#e65100" stroke-width="1.5"/>
+  <circle cx="112" cy="415" r="4" fill="#e65100"/>
+  <!-- GND -->
+  <line x1="380" y1="437" x2="158" y2="437" stroke="#263238" stroke-width="1.5"/>
+  <circle cx="158" cy="437" r="4" fill="#263238"/>
+
+  <!-- ── IR Slot 3 (GPIO5, y=558) ── -->
+  <rect x="380" y="533" width="145" height="50" rx="9"
+        fill="#f1f8e9" stroke="#388e3c" stroke-width="2.5"/>
+  <text x="452" y="554" text-anchor="middle" font-size="12"
+        font-weight="bold" fill="#1b5e20">IR Sensor</text>
+  <text x="452" y="572" text-anchor="middle" font-size="10"
+        fill="#33691e">Slot 3 · GPIO 5</text>
+  <!-- OUT → Pi -->
+  <line x1="525" y1="558" x2="560" y2="558" stroke="#388e3c" stroke-width="2.5"/>
+  <circle cx="560" cy="558" r="4" fill="#388e3c"/>
+  <text x="537" y="553" font-size="9" fill="#388e3c">OUT</text>
+  <!-- VCC -->
+  <line x1="380" y1="547" x2="112" y2="547" stroke="#e65100" stroke-width="1.5"/>
+  <circle cx="112" cy="547" r="4" fill="#e65100"/>
+  <!-- GND -->
+  <line x1="380" y1="569" x2="158" y2="569" stroke="#263238" stroke-width="1.5"/>
+  <circle cx="158" cy="569" r="4" fill="#263238"/>
+
+  <!-- ── IR Slot 4 (GPIO6, y=621) ── -->
+  <rect x="380" y="596" width="145" height="50" rx="9"
+        fill="#f1f8e9" stroke="#388e3c" stroke-width="2.5"/>
+  <text x="452" y="617" text-anchor="middle" font-size="12"
+        font-weight="bold" fill="#1b5e20">IR Sensor</text>
+  <text x="452" y="635" text-anchor="middle" font-size="10"
+        fill="#33691e">Slot 4 · GPIO 6</text>
+  <!-- OUT → Pi -->
+  <line x1="525" y1="621" x2="560" y2="621" stroke="#388e3c" stroke-width="2.5"/>
+  <circle cx="560" cy="621" r="4" fill="#388e3c"/>
+  <text x="537" y="616" font-size="9" fill="#388e3c">OUT</text>
+  <!-- VCC -->
+  <line x1="380" y1="610" x2="112" y2="610" stroke="#e65100" stroke-width="1.5"/>
+  <circle cx="112" cy="610" r="4" fill="#e65100"/>
+  <!-- GND -->
+  <line x1="380" y1="632" x2="158" y2="632" stroke="#263238" stroke-width="1.5"/>
+  <circle cx="158" cy="632" r="4" fill="#263238"/>
+
+  <!-- IR sensor label on the left block -->
+  <text x="245" y="248" text-anchor="middle" font-size="11" font-weight="bold"
+        fill="#1b5e20">IR Proximity Sensors</text>
+  <text x="245" y="263" text-anchor="middle" font-size="10" fill="#388e3c">
+    Active-low · 3.3 V powered
+  </text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  16×2 I²C LCD DISPLAY  (right side)                               -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <rect x="912" y="192" width="194" height="102" rx="11"
+        fill="#e3f2fd" stroke="#1565c0" stroke-width="2.5"/>
+  <text x="1009" y="216" text-anchor="middle" font-size="13"
+        font-weight="bold" fill="#0d47a1">16×2 I²C LCD</text>
+  <text x="1009" y="232" text-anchor="middle" font-size="10"
+        fill="#1565c0">PCF8574 Backpack</text>
+  <text x="1009" y="248" text-anchor="middle" font-size="10"
+        fill="#1976d2">I²C Address: 0x27</text>
+  <text x="1009" y="266" text-anchor="middle" font-size="10"
+        fill="#42a5f5">16 cols × 2 rows</text>
+  <text x="1009" y="282" text-anchor="middle" font-size="9"
+        fill="#64b5f6">VCC · GND · SDA · SCL</text>
+
+  <!-- Pin labels on left edge of LCD box -->
+  <text x="914" y="210" font-size="9" fill="#b71c1c">VCC</text>
+  <text x="914" y="225" font-size="9" fill="#263238">GND</text>
+  <text x="914" y="244" font-size="9" fill="#1565c0">SDA</text>
+  <text x="914" y="264" font-size="9" fill="#00695c">SCL</text>
+
+  <!-- LCD VCC (912,208) → route up to y=148 → right 5V bus at x=1290 -->
+  <polyline points="912,208 882,208 882,148 1290,148"
+            fill="none" stroke="#b71c1c" stroke-width="1.5"/>
+  <circle cx="1290" cy="148" r="4" fill="#b71c1c"/>
+
+  <!-- LCD GND (912,224) → right GND bus -->
+  <line x1="912" y1="224" x2="1334" y2="224"
+        stroke="#263238" stroke-width="1.5"/>
+  <circle cx="1334" cy="224" r="4" fill="#263238"/>
+
+  <!-- LCD SDA (912,244) → Pi GPIO2/SDA (816,244) — direct horizontal -->
+  <line x1="912" y1="244" x2="816" y2="244"
+        stroke="#1565c0" stroke-width="2"/>
+  <circle cx="816" cy="244" r="4" fill="#1565c0"/>
+  <text x="864" y="239" text-anchor="middle" font-size="9"
+        fill="#1565c0">SDA</text>
+
+  <!-- LCD SCL (912,264) → Pi GPIO3/SCL (816,264) — direct horizontal -->
+  <line x1="912" y1="264" x2="816" y2="264"
+        stroke="#00695c" stroke-width="2"/>
+  <circle cx="816" cy="264" r="4" fill="#00695c"/>
+  <text x="864" y="259" text-anchor="middle" font-size="9"
+        fill="#00695c">SCL</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  SERVO MOTOR  (right side, below LCD)                              -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <rect x="912" y="310" width="178" height="88" rx="11"
+        fill="#fff8e1" stroke="#e65100" stroke-width="2.5"/>
+  <text x="1001" y="334" text-anchor="middle" font-size="13"
+        font-weight="bold" fill="#bf360c">Servo Motor</text>
+  <text x="1001" y="350" text-anchor="middle" font-size="10"
+        fill="#e65100">SG90 / MG996R</text>
+  <text x="1001" y="366" text-anchor="middle" font-size="10"
+        fill="#e65100">Entrance Gate</text>
+  <text x="1001" y="382" text-anchor="middle" font-size="9"
+        fill="#ff8f00">50 Hz PWM · GPIO 18</text>
+
+  <!-- Pin labels on left edge of servo box -->
+  <text x="914" y="325" font-size="9" fill="#b71c1c">VCC</text>
+  <text x="914" y="340" font-size="9" fill="#263238">GND</text>
+  <text x="914" y="355" font-size="9" fill="#e65100">SIG</text>
+
+  <!-- Servo VCC → right 5V bus -->
+  <line x1="912" y1="324" x2="1290" y2="324"
+        stroke="#b71c1c" stroke-width="1.5"/>
+  <circle cx="1290" cy="324" r="4" fill="#b71c1c"/>
+
+  <!-- Servo GND → right GND bus -->
+  <line x1="912" y1="339" x2="1334" y2="339"
+        stroke="#263238" stroke-width="1.5"/>
+  <circle cx="1334" cy="339" r="4" fill="#263238"/>
+
+  <!-- Servo SIG (912,354) → Pi GPIO18 (816,324) via L-route -->
+  <polyline points="912,354 868,354 868,324 816,324"
+            fill="none" stroke="#e65100" stroke-width="2"/>
+  <circle cx="816" cy="324" r="4" fill="#e65100"/>
+  <text x="858" y="346" text-anchor="middle" font-size="9"
+        fill="#e65100">PWM</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  USB WEBCAM / IP CAMERA  (bottom centre)                           -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <rect x="626" y="884" width="186" height="66" rx="11"
+        fill="#fce4ec" stroke="#c62828" stroke-width="2.5"/>
+  <text x="719" y="908" text-anchor="middle" font-size="13"
+        font-weight="bold" fill="#b71c1c">USB Webcam</text>
+  <text x="719" y="924" text-anchor="middle" font-size="10"
+        fill="#c62828">USB / IP Camera</text>
+  <text x="719" y="938" text-anchor="middle" font-size="9"
+        fill="#ef5350">Licence Plate · EasyOCR</text>
+
+  <!-- USB cable: Pi USB port → camera -->
+  <line x1="688" y1="862" x2="688" y2="884" stroke="#4a148c" stroke-width="3"/>
+  <text x="706" y="878" font-size="9" fill="#4a148c">USB</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  BREADBOARD POWER RAIL NOTE (left)                                 -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <rect x="25" y="688" width="310" height="88" rx="9"
+        fill="#fff3e0" stroke="#ff6f00" stroke-width="1.5"/>
+  <text x="180" y="708" text-anchor="middle" font-size="11"
+        font-weight="bold" fill="#e65100">Shared Breadboard Rails</text>
+  <text x="35" y="726" font-size="10" fill="#4e342e">• All 5 IR sensors share the</text>
+  <text x="35" y="741" font-size="10" fill="#4e342e">  same 3.3V and GND rail.</text>
+  <text x="35" y="758" font-size="10" fill="#4e342e">• Connect VCC to Pin 1 or Pin 17.</text>
+  <text x="35" y="773" font-size="10" fill="#4e342e">• Use any GND pin (6,9,14,20,25…).</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  LEGEND                                                            -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <rect x="1104" y="448" width="290" height="258" rx="11"
+        fill="white" stroke="#b0bec5" stroke-width="1.5"/>
+  <text x="1249" y="470" text-anchor="middle" font-size="12"
+        font-weight="bold" fill="#37474f">Legend</text>
+
+  <!-- 3.3V -->
+  <line x1="1122" y1="490" x2="1168" y2="490" stroke="#e65100" stroke-width="3.5"/>
+  <text x="1178" y="494" font-size="11" fill="#37474f">3.3 V Power</text>
+
+  <!-- 5V -->
+  <line x1="1122" y1="511" x2="1168" y2="511" stroke="#b71c1c" stroke-width="3.5"/>
+  <text x="1178" y="515" font-size="11" fill="#37474f">5 V Power</text>
+
+  <!-- GND -->
+  <line x1="1122" y1="532" x2="1168" y2="532" stroke="#263238" stroke-width="3.5"/>
+  <text x="1178" y="536" font-size="11" fill="#37474f">Ground (GND)</text>
+
+  <!-- IR OUT -->
+  <line x1="1122" y1="553" x2="1168" y2="553" stroke="#388e3c" stroke-width="2.5"/>
+  <text x="1178" y="557" font-size="11" fill="#37474f">IR Signal (Digital OUT)</text>
+
+  <!-- I2C SDA -->
+  <line x1="1122" y1="574" x2="1168" y2="574" stroke="#1565c0" stroke-width="2"/>
+  <text x="1178" y="578" font-size="11" fill="#37474f">I²C SDA</text>
+
+  <!-- I2C SCL -->
+  <line x1="1122" y1="595" x2="1168" y2="595" stroke="#00695c" stroke-width="2"/>
+  <text x="1178" y="599" font-size="11" fill="#37474f">I²C SCL</text>
+
+  <!-- PWM -->
+  <line x1="1122" y1="616" x2="1168" y2="616" stroke="#e65100" stroke-width="2"/>
+  <text x="1178" y="620" font-size="11" fill="#37474f">PWM Signal</text>
+
+  <!-- USB -->
+  <line x1="1122" y1="637" x2="1168" y2="637" stroke="#4a148c" stroke-width="3"/>
+  <text x="1178" y="641" font-size="11" fill="#37474f">USB Cable</text>
+
+  <!-- Power dashed -->
+  <line x1="1122" y1="658" x2="1168" y2="658" stroke="#263238"
+        stroke-width="2" stroke-dasharray="7,4"/>
+  <text x="1178" y="662" font-size="11" fill="#37474f">Power Bus tap</text>
+
+  <!-- Junction dot -->
+  <circle cx="1145" cy="685" r="5" fill="#388e3c"/>
+  <text x="1178" y="689" font-size="11" fill="#37474f">Junction (connected)</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  WIRING NOTES BOX                                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <rect x="1104" y="718" width="290" height="198" rx="11"
+        fill="#fffde7" stroke="#f9a825" stroke-width="1.5"/>
+  <text x="1249" y="740" text-anchor="middle" font-size="12"
+        font-weight="bold" fill="#f57f17">⚠  Wiring Notes</text>
+  <text x="1118" y="760" font-size="10" fill="#4e342e">• Power all IR sensors from 3.3V ONLY.</text>
+  <text x="1118" y="776" font-size="10" fill="#4e342e">  5V on IR OUT → damages Pi GPIO!</text>
+  <text x="1118" y="794" font-size="10" fill="#4e342e">• LCD and Servo use the 5V rail.</text>
+  <text x="1118" y="810" font-size="10" fill="#4e342e">• Run: sudo i2cdetect -y 1</text>
+  <text x="1118" y="826" font-size="10" fill="#4e342e">  to confirm LCD address (0x27 / 0x3F).</text>
+  <text x="1118" y="844" font-size="10" fill="#4e342e">• GPIO 18 uses hardware PWM (50 Hz).</text>
+  <text x="1118" y="860" font-size="10" fill="#4e342e">  pigpiod daemon must be running.</text>
+  <text x="1118" y="878" font-size="10" fill="#4e342e">• IR debounce: 3 s stable before commit.</text>
+  <text x="1118" y="896" font-size="10" fill="#4e342e">• Use USB webcam or IP cam (same Wi-Fi).</text>
+  <text x="1118" y="912" font-size="10" fill="#4e342e">• No level-shifters needed at 3.3V.</text>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!--  GPIO QUICK-REFERENCE TABLE  (bottom-left)                         -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+  <rect x="25" y="792" width="356" height="164" rx="11"
+        fill="white" stroke="#cfd8dc" stroke-width="1.5"/>
+  <text x="203" y="812" text-anchor="middle" font-size="11"
+        font-weight="bold" fill="#1a237e">GPIO Pin Reference (BCM)</text>
+
+  <!-- column headers -->
+  <text x="35"  y="830" font-size="10" font-weight="bold" fill="#455a64">Signal</text>
+  <text x="170" y="830" font-size="10" font-weight="bold" fill="#455a64">BCM</text>
+  <text x="230" y="830" font-size="10" font-weight="bold" fill="#455a64">Phys. Pin</text>
+  <text x="320" y="830" font-size="10" font-weight="bold" fill="#455a64">Supply</text>
+  <line x1="30" y1="834" x2="373" y2="834" stroke="#b0bec5" stroke-width="1"/>
+
+  <text x="35"  y="850" font-size="10" fill="#37474f">IR Entrance</text>
+  <text x="170" y="850" font-size="10" fill="#37474f">17</text>
+  <text x="230" y="850" font-size="10" fill="#37474f">11</text>
+  <text x="320" y="850" font-size="10" fill="#e65100">3.3 V</text>
+
+  <text x="35"  y="866" font-size="10" fill="#37474f">IR Slot 1</text>
+  <text x="170" y="866" font-size="10" fill="#37474f">27</text>
+  <text x="230" y="866" font-size="10" fill="#37474f">13</text>
+  <text x="320" y="866" font-size="10" fill="#e65100">3.3 V</text>
+
+  <text x="35"  y="882" font-size="10" fill="#37474f">IR Slot 2</text>
+  <text x="170" y="882" font-size="10" fill="#37474f">22</text>
+  <text x="230" y="882" font-size="10" fill="#37474f">15</text>
+  <text x="320" y="882" font-size="10" fill="#e65100">3.3 V</text>
+
+  <text x="35"  y="898" font-size="10" fill="#37474f">IR Slot 3</text>
+  <text x="170" y="898" font-size="10" fill="#37474f">5</text>
+  <text x="230" y="898" font-size="10" fill="#37474f">29</text>
+  <text x="320" y="898" font-size="10" fill="#e65100">3.3 V</text>
+
+  <text x="35"  y="914" font-size="10" fill="#37474f">IR Slot 4</text>
+  <text x="170" y="914" font-size="10" fill="#37474f">6</text>
+  <text x="230" y="914" font-size="10" fill="#37474f">31</text>
+  <text x="320" y="914" font-size="10" fill="#e65100">3.3 V</text>
+
+  <text x="35"  y="930" font-size="10" fill="#37474f">I²C SDA (LCD)</text>
+  <text x="170" y="930" font-size="10" fill="#37474f">2</text>
+  <text x="230" y="930" font-size="10" fill="#37474f">3</text>
+  <text x="320" y="930" font-size="10" fill="#b71c1c">5 V (LCD VCC)</text>
+
+  <text x="35"  y="946" font-size="10" fill="#37474f">I²C SCL (LCD)</text>
+  <text x="170" y="946" font-size="10" fill="#37474f">3</text>
+  <text x="230" y="946" font-size="10" fill="#37474f">5</text>
+  <text x="320" y="946" font-size="10" fill="#b71c1c">5 V (LCD VCC)</text>
+
+  <!-- GPIO 18 / Servo row (new row below) — reuse area in the table -->
+  <!-- (table is tall enough at 164px for 8 rows) -->
+
+</svg>
