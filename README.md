@@ -54,16 +54,6 @@ Partial hours are billed per-minute. The billing engine splits the parked durati
 | 1 | 5 V / 3 A USB-C Power Supply | Powers the Pi |
 | 1 | Servo external 5 V supply *(optional)* | Prevents Pi brownout under servo load |
 
-### ~~Removed Components (no longer used)~~
-
-> ⚠️ **The following components from previous hardware revisions are NO LONGER part of this build.  Do NOT connect them.**
->
-> | Removed Component | Reason |
-> |---|---|
-> | ~~HC-SR04 Ultrasonic Sensors~~ | Replaced entirely by IR sensors for all detection tasks |
-> | ~~Raspberry Pi Camera Module v2 (CSI)~~ | Replaced by an external USB webcam or IP camera |
-> | ~~1 kΩ / 2 kΩ Resistors (voltage divider)~~ | Only required for HC-SR04 Echo pins — no longer needed |
-
 ---
 
 ## Master Wiring Guide
@@ -85,21 +75,7 @@ All GPIO numbers use the **BCM (Broadcom)** scheme.
 
 > **Tip:** All GND pins on the 40-pin header are equivalent.  Use Pins 6, 9, 14, 20, 25, 30, 34, or 39 to build a shared ground rail on the breadboard.
 
----
-
-### ⚠️ Critical Voltage Warning — IR Sensors vs Servo & LCD
-
-> **READ THIS BEFORE WIRING ANYTHING**
->
-> The Raspberry Pi 4B's GPIO input pins are rated for a **maximum of 3.3 V**.  Applying 5 V directly to any GPIO pin **will permanently destroy** the Pi's SoC.
->
-> **Rule of thumb for this build:**
->
-> | Component | VCC Supply | Why |
-> |---|---|---|
-> | 16×2 I2C LCD (PCF8574 backpack) | **5 V rail** (Pin 2 or Pin 4) | The LCD backlight and logic require 5 V; the PCF8574 I2C lines are open-drain and 3.3 V tolerant. |
-> | Servo Motor (SG90 / MG996R) | **5 V rail** (Pin 2 or Pin 4) | Servo logic and motor both run at 5 V. |
-> | **All 5 × IR Sensor Modules** | **3.3 V rail** (Pin 1 or Pin 17) | When powered from 3.3 V, the digital OUT pin also swings to 3.3 V, making it GPIO-safe with no additional components needed.  **If you power an IR module from 5 V, its OUT pin will output 5 V and will damage the Pi.** |
+and will damage the Pi.** |
 
 ---
 
